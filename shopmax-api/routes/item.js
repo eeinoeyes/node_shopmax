@@ -4,6 +4,7 @@ const path = require('path')
 const fs = require('fs')
 const { Op } = require('sequelize')
 const { Item, Img } = require('../models')
+const { isAdmin } = require('./middlewares')
 const router = express.Router()
 
 // uploads 폴더가 없을 경우 새로 생성
@@ -36,8 +37,8 @@ const upload = multer({
    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB로 제한
 })
 
-// 상품등록
-router.post('/', upload.array('img'), async (req, res, next) => {
+// 상품등록 localhost:8000/item/
+router.post('/', isAdmin, upload.array('img'), async (req, res, next) => {
    try {
       // 업로드된 파일 확인
       if (!req.files) {
@@ -94,34 +95,41 @@ router.post('/', upload.array('img'), async (req, res, next) => {
    }
 })
 
-//전체 상품 불러오기
+// localhost:8000/item?page=1&limit=3&sellCategory=SELL&searchTerm=가방&searchCategory=itemNm => 판매중인 상품 중에서 상품명 '가방 '으로 검색
+
+// localhost:8000/item?page=1&limit=3&sellCategory=SOLD_OUT&searchTerm=가방&searchCategory=itemDetail => 품절된 상품 중에서 상품설명 '가방'으로 검색
+
+// 전체 상품 불러오기(페이징, 검색 기능)
 router.get('/', async (req, res, next) => {
    try {
       const page = parseInt(req.query.page, 10) || 1
       const limit = parseInt(req.query.limit, 10) || 5
       const offset = (page - 1) * limit
 
-      //쿼리스트링에서 검색 데이터 추출하기(판매상태, 상품명, 상품설명)
-      const searchTerm = req.query.searchTerm || ''
-      const searchCategory = req.query.searchCategory || 'itemNm'
-      const sellCategory = req.query.sellCategory
+      // 판매상태, 상품명, 상품설명 값 가져오기
+      const searchTerm = req.query.searchTerm || '' // 사용자가 입력한 검색어
+      const searchCategory = req.query.searchCategory || 'itemNm' // 상품명 or 상품설명으로 검색
+      const sellCategory = req.query.sellCategory // 판매상태('SELL' 또는 'SOLD_OUT'만 존재)
 
-      //조건부 where절 만들기
+      /*
+         스프레드 연산자(...)를 사용하는 이유는 조건적으로 객체를 추가하기 위해서
+         스프레드 연산자는 "", false, 0, null, undefined 와 같은 falsy값들은 무시하고 
+         값이 true 일때만 반환된 객체를 추가
+      */
+      // 조건부 where 절을 만드는 객체
       const whereClause = {
+         // searchTerm이 존재하면 해당 검색어(searchTerm)가 포함된 검색 범주(searchCategory)를 조건으로 추가 => itemDetail like '%가방%'; 혹은 itemNm like '%가방%';
          ...(searchTerm && {
             [searchCategory]: {
-               [Op.like]: `%${searchTerm}`,
+               [Op.like]: `%${searchTerm}%`,
             },
-            /*
-         전개연산자 (스프레드 연산자, ... 형태) 사용하는 이유?
-         -> 조건적으로 객체를 추가하기 위해서
-         빈 문자열(""), false, 0, null, undefined와 같은 falsy값을 무시하고 true인 값만 남기기 때문
-         */
          }),
+         //sellCategory가 존재하면 itemSellStatus가 해당 판매 상태와 일치하는 항목을 조건으로 추가 => itemSellStatus = 'SOLD_OUT' 혹은 itemSellStatus = 'SELL'
          ...(sellCategory && {
             itemSellStatus: sellCategory,
          }),
       }
+
       // localhost:8000/item?page=1&limit=3&sellCategory=SOLD_OUT&searchTerm=가방&searchCategory=itemDetail => 품절된 상품 중에서 상품설명 '가방'으로 검색
 
       /*
@@ -133,16 +141,12 @@ router.get('/', async (req, res, next) => {
          }
       */
 
-      //searchTerm이 존재한다면 해당 값(searchTerm)이 포함된 검색 범주(searchCategory)를 조건으로 추가
-      //sequelize의 Op: SQL 쿼리에서 조건절(where 등)을 작성할 때 사용하는 "연산자(Operator)" 모음 객체
-
+      // 전체 상품 갯수
       const count = await Item.count({
-         //where절 조건을 포함하는 전체 상품 갯수 가져오기
          where: whereClause,
       })
 
       const items = await Item.findAll({
-         //페이징을 위한 데이터
          where: whereClause,
          limit,
          offset,
@@ -154,6 +158,7 @@ router.get('/', async (req, res, next) => {
             },
          ],
       })
+
       res.json({
          success: true,
          message: '상품 목록 조회 성공',
@@ -171,4 +176,122 @@ router.get('/', async (req, res, next) => {
       next(error)
    }
 })
+
+// 상품 삭제 localhost:8000/item/:id
+router.delete('/:id', isAdmin, async (req, res, next) => {
+   try {
+      const id = req.params.id // 상품 id
+
+      // 상품이 존재하는지 확인
+      const item = await Item.findByPk(id) // pk 키로 검색
+
+      // 상품이 존재하지 않으면
+      if (!item) {
+         const error = new Error('상품을 찾을 수 없습니다.')
+         error.status = 404
+         return next(error)
+      }
+
+      // 상품삭제 (연관된 이미지도 삭제된다 - CASCADE 설정)
+      await item.destroy()
+
+      res.json({
+         success: true,
+         message: '상품이 성공적으로 삭제되었습니다.',
+      })
+   } catch (error) {
+      error.status = 500
+      error.message = '상품 삭제 중 오류가 발생했습니다.'
+      next(error)
+   }
+})
+
+// 특정 상품 불러오기 localhost:8000/item/:id
+router.get('/:id', async (req, res, next) => {
+   try {
+      const id = req.params.id
+      console.log('🎗🎗id:', id)
+
+      const item = await Item.findOne({
+         where: { id }, // 특정 상품 id로 조회
+         include: [
+            {
+               model: Img, // 연관된 이미지 포함
+               attributes: ['id', 'oriImgName', 'imgUrl', 'repImgYn'], //특정 컬럼만 선택
+            },
+         ],
+      })
+
+      if (!item) {
+         const error = new Error('해당 상품을 찾을 수 없습니다.')
+         error.status = 404
+         return next(error)
+      }
+
+      res.json({
+         success: true,
+         message: '상품 조회 성공',
+         item,
+      })
+   } catch (error) {
+      error.status = 500
+      error.message = '상품을 불러오는 중 오류가 발생했습니다.'
+      next(error)
+   }
+})
+
+// 상품 수정 localhost:8000/item/:id
+router.put('/:id', isAdmin, upload.array('img'), async (req, res, next) => {
+   try {
+      const id = req.params.id
+      const { itemNm, price, stockNumber, itemDetail, itemSellStatus } = req.body
+
+      // 상품이 존재하는지 확인
+      const item = await Item.findByPk(id)
+
+      if (!item) {
+         const error = new Error('해당 상품을 찾을 수 없습니다.')
+         error.status = 404
+         return next(error)
+      }
+
+      await item.update({
+         itemNm,
+         price,
+         stockNumber,
+         itemDetail,
+         itemSellStatus,
+      })
+
+      // 수정할 이미지가 존재하는 경우
+      if (req.files && req.files.length > 0) {
+         // 기존 이미지 삭제
+         await Img.destroy({ where: { itemId: id } })
+
+         // 새 이미지 추가
+         const images = req.files.map((file) => ({
+            oriImgName: file.originalname, // 원본 이미지명
+            imgUrl: `/${file.filename}`, //이미지 경로
+            repImgYn: 'N', // 기본적으로 'N' 설정
+            itemId: item.id, // 생성된 상품 ID 연결
+         }))
+
+         // 첫 번째 이미지는 대표 이미지로 설정
+         if (images.length > 0) images[0].repImgYn = 'Y'
+
+         // 이미지 여러개 insert
+         await Img.bulkCreate(images)
+      }
+
+      res.json({
+         success: true,
+         message: '상품과 이미지가 성공적으로 수정되었습니다.',
+      })
+   } catch (error) {
+      error.status = 500
+      error.message = '상품 수정 중 오류가 발생했습니다.'
+      next(error)
+   }
+})
+
 module.exports = router

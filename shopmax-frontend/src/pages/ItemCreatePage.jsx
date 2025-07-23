@@ -13,10 +13,10 @@ function ItemCreatePage() {
    const onCreateSubmit = (itemData) => {
       dispatch(createItemThunk(itemData))
          .unwrap()
-         .then(() => navigate('/'))
+         .then(() => navigate('/items/createlist'))
          .catch((error) => {
             console.error('상품 등록 에러:', error)
-            alert('상품 등록에 실패했습니다.' + error)
+            alert('상품 등록에 실패했습니다. ' + error)
          })
    }
    return (

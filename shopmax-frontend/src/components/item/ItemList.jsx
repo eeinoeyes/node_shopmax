@@ -4,7 +4,7 @@ import dayjs from 'dayjs'
 import { useEffect, useState } from 'react'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { fetchItemsThunk } from '../../features/itemSlice'
+import { deleteItemThunk, fetchItemsThunk } from '../../features/itemSlice'
 import { formatWithComma, stripComma } from '../../utils/priceSet'
 
 function ItemList() {
@@ -18,6 +18,21 @@ function ItemList() {
    const navigate = useNavigate()
 
    const { items, pagination, loading, error } = useSelector((state) => state.items)
+
+   const handleDeleteThunk = (id) => {
+      const result = confirm('상품을 삭제하시겠습니까?')
+      if (result) {
+         dispatch(deleteItemThunk(id))
+            .unwrap()
+            .then(() => {
+               navigate('/items/createlist') // 삭제 후 리스트로 이동
+            })
+            .catch((error) => {
+               console.error('삭제 에러: ', error)
+               alert('삭제에 실패했습니다.' + error)
+            })
+      }
+   }
 
    //전체 상품 리스트 가져오기
    useEffect(() => {
@@ -54,9 +69,8 @@ function ItemList() {
       setPage(1)
    }
 
-   //삭제 버튼
-   const handleDelete = (e) => {}
-
+   if (loading) return <p>로딩 중입니다...</p>
+   if (error) return <p>에러 발생: {error}</p>
    return (
       <>
          <Box sx={{ p: 4 }}>
@@ -85,14 +99,20 @@ function ItemList() {
                      {items.length > 0 ? (
                         items.map((item) => (
                            <TableRow key={item.id}>
-                              <TableCell>{item.id}</TableCell>
-                              <TableCell align="center">{item.itemNm}</TableCell>
+                              <TableCell align="center">{item.id}</TableCell>
+
+                              <TableCell align="center">
+                                 <Link href={`/items/edit/${item.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                                    {item.itemNm}
+                                 </Link>
+                              </TableCell>
+
                               <TableCell align="center">{item.price}</TableCell>
                               <TableCell align="center">{item.itemSellStatus}</TableCell>
                               <TableCell align="center">{dayjs(item.createdAt).format('YYYY-MM-DD HH:mm:ss')}</TableCell>
                               <TableCell align="center">
-                                 <IconButton aria-label="delete" onClick={handleDelete}>
-                                    <DeleteIcon />
+                                 <IconButton aria-label="delete">
+                                    <DeleteIcon onClick={() => handleDeleteThunk(item.id)} />
                                  </IconButton>
                               </TableCell>
                            </TableRow>
@@ -134,7 +154,7 @@ function ItemList() {
                <FormControl sx={{ flex: 1 }}>
                   <TextField label="검색" variant="outlined" size="small" value={searchTerm} onChange={handleSearchChange} placeholder="검색어 입력" fullWidth />
                </FormControl>
-               <Button variant="contained" type="submit">
+               <Button variant="contained" type="submit" onClick={handleSearchSubmit}>
                   검색
                </Button>
             </Box>
