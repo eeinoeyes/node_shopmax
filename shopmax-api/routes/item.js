@@ -180,7 +180,7 @@ router.get('/', async (req, res, next) => {
 // 상품 삭제 localhost:8000/item/:id
 router.delete('/:id', isAdmin, async (req, res, next) => {
    try {
-      const id = req.params.id // 상품 id
+      const id = Number(req.params.id)
 
       // 상품이 존재하는지 확인
       const item = await Item.findByPk(id) // pk 키로 검색
@@ -209,8 +209,7 @@ router.delete('/:id', isAdmin, async (req, res, next) => {
 // 특정 상품 불러오기 localhost:8000/item/:id
 router.get('/:id', async (req, res, next) => {
    try {
-      const id = req.params.id
-      console.log('🎗🎗id:', id)
+      const id = Number(req.params.id)
 
       const item = await Item.findOne({
          where: { id }, // 특정 상품 id로 조회
@@ -243,7 +242,7 @@ router.get('/:id', async (req, res, next) => {
 // 상품 수정 localhost:8000/item/:id
 router.put('/:id', isAdmin, upload.array('img'), async (req, res, next) => {
    try {
-      const id = req.params.id
+      const id = Number(req.params.id)
       const { itemNm, price, stockNumber, itemDetail, itemSellStatus } = req.body
 
       // 상품이 존재하는지 확인

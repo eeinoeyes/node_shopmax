@@ -44,15 +44,32 @@ const Input = styled.input`
 `
 
 function NumberInput({ value, onChange, min = 0, max = 100, step = 1 }) {
-   const handleDecrease = () => {}
-   const hancleIncrease = () => {}
-   const handleChange = () => {}
+   const handleDecrease = () => {
+      const newValue = Math.max(min, Number(value) - step)
+      onChange({ target: { value: newValue } })
+   }
+   const handleIncrease = () => {
+      const newValue = Math.min(max, Number(value) + step)
+      onChange({ target: { value: newValue } })
+   }
+
+   //입력값이 직접 변경될 때 호출되는 함수
+   const handleChange = (e) => {
+      const newValue = e.target.value
+      if (newValue === '' || (!isNaN(newValue) && newValue >= min && newValue <= max)) {
+         onChange(e)
+      }
+   }
 
    return (
       <InputWrapper>
-         <Button>-</Button>
+         <Button onClick={handleDecrease} disabled={value <= min}>
+            -
+         </Button>
          <Input type="number" value={value} onChange={() => {}} min={min} max={max} step={step} />
-         <Button>-</Button>
+         <Button onClick={handleIncrease} disabled={value >= max}>
+            +
+         </Button>
       </InputWrapper>
    )
 }

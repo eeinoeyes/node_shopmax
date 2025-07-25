@@ -56,9 +56,7 @@ export const deleteItem = async (id) => {
 // 특정 상품 가져오기
 export const getItemById = async (id) => {
    try {
-      console.log('id:', id)
       const response = await shopmaxApi.get(`/item/${id}`)
-      console.log('response:', response)
       return response
    } catch (error) {
       console.error(`API Request 오류: ${error}`)

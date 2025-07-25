@@ -33,10 +33,10 @@ export const fetchItemsThunk = createAsyncThunk('item/fetchItems', async (data, 
 })
 
 //특정 상품 불러오기
-export const fetchItemByIdThunk = createAsyncThunk('item/fetchById', async (id, { rejectWithValue }) => {
+export const fetchItemByIdThunk = createAsyncThunk('item/fetchItemById', async (id, { rejectWithValue }) => {
    try {
-      const response = await getItemById(id)
-      console.log('🔥response.data:', response.data)
+      const response = await getItemById(Number(id))
+
       return response.data.item
    } catch (error) {
       return rejectWithValue(error.response?.data?.message)
