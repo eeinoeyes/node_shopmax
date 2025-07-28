@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { cancleOrder, createOrder, deleteOrder, getOrders } from '../api/orderApi'
+import { cancelOrder, createOrder, deleteOrder, getOrders } from '../api/orderApi'
 
 //주문생성
 export const createOrderThunk = createAsyncThunk('order/createOrder', async (orderData, { rejectWithValue }) => {
@@ -24,7 +24,7 @@ export const getOrdersThunk = createAsyncThunk('order/getOrders', async (data, {
 //주문 취소
 export const cancelOrderThunk = createAsyncThunk('order/cancelOrder', async (id, { rejectWithValue }) => {
    try {
-      await cancleOrder(id)
+      await cancelOrder(id)
       return id
    } catch (error) {
       return rejectWithValue(error.response?.data?.message)

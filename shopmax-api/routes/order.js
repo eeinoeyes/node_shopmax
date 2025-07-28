@@ -209,6 +209,8 @@ router.post('/cancel/:id', isLoggedIn, async (req, res, next) => {
          //각각의 상품 정의하고
          product.stockNumber += orderItem.count
          //주문한 갯수만큼 product.stockNumber에 추가함
+         //약간 map이랑 비슷하게 작동하는 로직??
+
          await product.save({ transaction }) //트랜잭션 꼭!!
       }
 

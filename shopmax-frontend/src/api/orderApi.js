@@ -26,7 +26,7 @@ export const getOrders = async (data) => {
 }
 
 //주문 취소
-export const cancleOrder = async (id) => {
+export const cancelOrder = async (id) => {
    try {
       const response = await shopmaxApi.post(`/order/cancel/${id}`)
       return response
